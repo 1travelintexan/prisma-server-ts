@@ -24,7 +24,7 @@ import { RequestSignup, RequestLogin } from "../types/requests";
 import { isAuthenticated } from "../middleware/jwt.middleware";
 
 //**************PRISMA ********************/
-const prisma = require("../db/index.ts");
+const prisma = require("../db/index");
 // POST /auth/signup  - Creates a new user in the database
 router.post("/signup", (req: RequestSignup, res: Response) => {
   const { password } = req.body;
