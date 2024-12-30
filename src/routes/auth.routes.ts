@@ -1,6 +1,6 @@
 import express from "express";
 const router = express.Router();
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 // ℹ️ Handles password encryption
 // const bcrypt = require("bcrypt");
 import bcrypt from "bcrypt";
@@ -11,7 +11,7 @@ import jwt from "jsonwebtoken";
 
 // Require the User model in order to interact with the database
 // const User = require("../models/User.model");
-import User from "../models/User.model";
+// import User from "../models/User.model";
 
 //************************************* */
 // Require necessary (isAuthenticated) middleware in order to control access to specific routes
@@ -24,73 +24,67 @@ import { RequestSignup, RequestLogin } from "../types/requests";
 import { isAuthenticated } from "../middleware/jwt.middleware";
 
 //**************PRISMA ********************/
-const prisma = require("../db/index.js");
+const prisma = require("../db/index.ts");
 // POST /auth/signup  - Creates a new user in the database
-router.post(
-  "/signup",
-  (req: RequestSignup, res: Response, next: NextFunction) => {
-    const { email, password, name } = req.body;
+router.post("/signup", (req: RequestSignup, res: Response) => {
+  const { password } = req.body;
 
-    // If email is unique, proceed to hash the password
-    const salt = bcrypt.genSaltSync(saltRounds);
-    const hashedPassword = bcrypt.hashSync(password, salt);
-    // Create the new user in the database
-    prisma.user
-      .create({ data: { ...req.body, password: hashedPassword } })
-      .then((response: any) => {
-        res.status(201).json({ newUser: response });
-      })
-      .catch((err: any) => {
-        console.log(err);
-        res.status(501).json({ message: "nope", err });
-      });
-  }
-);
+  // If email is unique, proceed to hash the password
+  const salt = bcrypt.genSaltSync(saltRounds);
+  const hashedPassword = bcrypt.hashSync(password, salt);
+  // Create the new user in the database
+  prisma.user
+    .create({ data: { ...req.body, password: hashedPassword } })
+    .then((response: any) => {
+      res.status(201).json({ newUser: response });
+    })
+    .catch((err: any) => {
+      console.log(err);
+      res.status(501).json({ message: "nope", err });
+    });
+});
 
 // POST  /auth/login - Verifies email and password and returns a JWT
-router.post(
-  "/login",
-  async (req: RequestLogin, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
+router.post("/login", async (req: RequestLogin, res: Response) => {
+  const { email, password } = req.body;
 
-    // Check if email or password are provided as empty string
-    if (email === "" || password === "") {
-      res.status(400).json({ message: "Provide email and password." });
-      return;
-    }
-    try {
-      // Check the users collection if a user with the same email exists
-      const foundUser = await prisma.user.findFirst({
-        where: { email: req.body.email },
-      });
-      console.log("user found", foundUser);
-      // Compare the provided password with the one saved in the database
-      const passwordCorrect = bcrypt.compareSync(password, foundUser.password);
-
-      if (passwordCorrect) {
-        // Deconstruct the user object to omit the password
-        const { id, email, name } = foundUser;
-
-        // Create an object that will be set as the token payload
-        const payload = { id, name, email };
-
-        // Create a JSON Web Token and sign it
-        const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
-          algorithm: "HS256",
-          expiresIn: "6h",
-        });
-
-        // Send the token as the response
-        res.status(200).json({ authToken: authToken });
-      } else {
-        res.status(401).json({ message: "Unable to authenticate the user" });
-      }
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({ message: error });
-    }
+  // Check if email or password are provided as empty string
+  if (email === "" || password === "") {
+    res.status(400).json({ message: "Provide email and password." });
+    return;
   }
-);
+  try {
+    // Check the users collection if a user with the same email exists
+    const foundUser = await prisma.user.findFirst({
+      where: { email: req.body.email },
+    });
+    console.log("user found", foundUser);
+    // Compare the provided password with the one saved in the database
+    const passwordCorrect = bcrypt.compareSync(password, foundUser.password);
+
+    if (passwordCorrect) {
+      // Deconstruct the user object to omit the password
+      const { id, email, name } = foundUser;
+
+      // Create an object that will be set as the token payload
+      const payload = { id, name, email };
+
+      // Create a JSON Web Token and sign it
+      const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
+        algorithm: "HS256",
+        expiresIn: "6h",
+      });
+
+      // Send the token as the response
+      res.status(200).json({ authToken: authToken });
+    } else {
+      res.status(401).json({ message: "Unable to authenticate the user" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error });
+  }
+});
 
 //find one user with the token
 router.get(
@@ -148,7 +142,7 @@ router.delete(
 );
 
 // GET  /auth/verify  -  Used to verify JWT stored on the client
-router.get("/verify", isAuthenticated, (req, res, next) => {
+router.get("/verify", isAuthenticated, (req: Request, res: Response) => {
   // If JWT token is valid the payload gets decoded by the
   // isAuthenticated middleware and is made available on `req.payload`
   console.log(`req.payload`, req.payload);
